@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# local environment (Supabase keys)
+.env
+.env*.local
+
+# Vercel
+.vercel
+
+# misc
+.DS_Store
+npm-debug.log*
+_static-site-backup/
