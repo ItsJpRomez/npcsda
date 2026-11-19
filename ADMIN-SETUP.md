@@ -17,14 +17,33 @@ Until Supabase is connected, the site shows its built-in content from `lib/defau
 4. For the region, pick **Southeast Asia (Singapore)**.
 5. Wait about a minute for the project to finish setting up.
 
-## 2. Create the tables and copy in the current content
+## 2. Run the database migrations
 
+The database is set up by two migration files in [`supabase/migrations/`](supabase/migrations). They run in filename order:
+
+| File | What it does |
+|---|---|
+| `20261113000000_initial_schema.sql` | Creates the tables, the security rules, and the `media` photo storage. |
+| `20261113000100_seed_content.sql` | Copies the website's current content into the database, so nothing is lost. It only fills tables that are still empty. |
+
+Both are safe to run again; they never overwrite your edits. Pick **one** of these ways to run them:
+
+**Option A: SQL Editor (no install).**
 1. In your project, open **SQL Editor** → **New query**.
-2. Open [`supabase/schema.sql`](supabase/schema.sql), copy everything, paste it in, and click **Run**.
-   - This creates the tables, the security rules, and the `media` photo storage.
-3. Start another **New query**. Paste in [`supabase/seed.sql`](supabase/seed.sql) and click **Run**.
-   - This copies the website's current content into the database, so nothing is lost.
-   - It's safe to run again later: it only fills tables that are still empty.
+2. Paste in all of `20261113000000_initial_schema.sql` and click **Run**.
+3. Start another **New query**, paste in `20261113000100_seed_content.sql`, and click **Run**.
+
+**Option B: Supabase CLI.** The CLI is already part of the project (`npm install` installs it), and it records which migrations have run. From the project folder:
+
+```bash
+npm run db:login                                   # opens the browser to sign in to Supabase
+npm run db:link -- --project-ref YOUR-PROJECT-REF  # from your project URL: https://YOUR-PROJECT-REF.supabase.co
+npm run db:push                                    # applies any migrations not yet run
+```
+
+`db:link` asks for the database password from step 1. You only need to log in and link once per computer.
+
+**Later changes to the database:** run `npm run db:new -- what_it_does`, which creates a dated file in `supabase/migrations/`. Write the SQL in it, then run `npm run db:push` (or paste it into SQL Editor). Don't edit migrations that have already been run.
 
 ## 3. Lock down sign-ups
 
@@ -68,7 +87,7 @@ Only accounts listed in `admin_users` can change content or upload photos. Anyon
    - Add `https://YOUR-SITE/admin/auth/callback` under **Redirect URLs**.
    - The "Forgot your password?" email link needs this.
 
-> **Never** add the `service_role` key to this project or to Vercel. The anon key is designed to be public. The security rules in `schema.sql` mean it can only *read* published content. Only a signed-in administrator can change anything.
+> **Never** add the `service_role` key to this project or to Vercel. The anon key is designed to be public. The security rules in the first migration mean it can only *read* published content. Only a signed-in administrator can change anything.
 
 ## 6. Sign in
 
@@ -100,7 +119,7 @@ To check the code, run `npm run typecheck` or `npm run build`.
 | Speed + freshness | `app/(site)/page.tsx`, `app/admin/actions.ts` | The home page is cached so it loads fast. Every Save in the Admin Panel rebuilds it right away, and it also refreshes on its own every 5 minutes. |
 | Admin Panel | `app/admin/`, `components/admin/` | Sign in, dashboard, and a form for every section. Photos upload straight to Supabase Storage. |
 | Sign-in protection | `proxy.ts`, `app/admin/(panel)/layout.tsx` | The server sends anyone who isn't signed in to the login page, and anyone not in `admin_users` is turned away before any admin page loads. |
-| Data security | `supabase/schema.sql` | Row Level Security: visitors can only read published items; only administrators can add, edit or delete content and photos. |
+| Data security | `supabase/migrations/` | Row Level Security: visitors can only read published items; only administrators can add, edit or delete content and photos. |
 | Photos | Supabase Storage, `media` bucket | JPG, PNG or WebP, up to 5 MB each, enforced by Supabase itself. Replacing or deleting a photo also deletes the old file. |
 | Donations | Google Forms | The website never handles payments. Paste your Google Form link under **Building fund** (and optionally under **Tithes & offerings**). |
 

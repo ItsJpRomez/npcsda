@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Icon } from '../Icon';
+import { Icon } from './Icon';
 
 /* ---------- Toasts + confirm dialog ---------- */
 type ToastKind = 'success' | 'error';
@@ -64,14 +64,16 @@ export function AdminUIProvider({ children }: { children: ReactNode }) {
       <Modal open={!!ask} onClose={() => answer(false)} small labelledBy="confirm-title">
         {ask && (
           <>
-            <div className="dlg-body">
-              <div className="confirm-icon"><Icon name={danger ? 'trash' : 'alert'} /></div>
-              <h2 id="confirm-title" style={{ fontSize: '1.1rem', marginBottom: 6 }}>{ask.title}</h2>
-              <p style={{ margin: 0, color: 'var(--muted)' }}>{ask.body}</p>
-            </div>
-            <div className="dlg-foot">
-              <button type="button" className="btn btn-light" autoFocus onClick={() => answer(false)}>Cancel</button>
-              <button type="button" className={`btn ${danger ? 'btn-danger' : 'btn-navy'}`} onClick={() => answer(true)}>{ask.confirmLabel ?? 'Delete'}</button>
+            <div className="confirm">
+              <div className={`confirm-icon${danger ? '' : ' is-info'}`}>
+                <Icon name={/delete|remove/i.test(ask.confirmLabel ?? 'Delete') ? 'trash' : 'alert'} />
+              </div>
+              <h2 id="confirm-title">{ask.title}</h2>
+              <p>{ask.body}</p>
+              <div className="confirm-actions">
+                <button type="button" className="btn btn-light" autoFocus onClick={() => answer(false)}>Cancel</button>
+                <button type="button" className={`btn ${danger ? 'btn-danger' : 'btn-navy'}`} onClick={() => answer(true)}>{ask.confirmLabel ?? 'Delete'}</button>
+              </div>
             </div>
           </>
         )}

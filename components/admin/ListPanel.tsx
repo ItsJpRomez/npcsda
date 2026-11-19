@@ -3,20 +3,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { mediaSrc } from '@/lib/format';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import { deleteRow, friendly, moveRow, persist, setPublished, type Row } from '@/lib/admin/api';
-import { Icon } from '../Icon';
+import { deleteRow, friendly, persist, reorderRows, setPublished, type Row } from '@/lib/admin/api';
+import { Icon } from './Icon';
 import { FormDialog } from './FormDialog';
 import { SECTIONS, type ListSection, type ListSectionKey } from './sections';
 import { ErrorBox, useUI } from './ui';
+import { useDragSort } from './useDragSort';
 
 /** Searchable, filterable list with add / edit / delete / reorder / show-hide. */
-export function ListPanel({ section, compact }: { section: ListSectionKey; compact?: boolean }) {
+/** Pastel tint per section (DESIGN_SYSTEM.md hue convention). */
+const HUES: Partial<Record<ListSectionKey, string>> = {
+  events: 'blue', officers: 'purple', ministries: 'amber', services: 'teal', milestones: 'rose',
+  resources: 'blue', giving_methods: 'green',
+};
+
+export function ListPanel({ section, compact, initialFilters }: { section: ListSectionKey; compact?: boolean; initialFilters?: Record<string, string> }) {
   const sec = SECTIONS[section] as ListSection;
   const ui = useUI();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [q, setQ] = useState('');
-  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Record<string, string>>(initialFilters ?? {});
   const [editing, setEditing] = useState<Row | 'new' | null>(null);
   const [busyId, setBusyId] = useState<Row['id'] | null>(null);
 
@@ -64,16 +71,17 @@ export function ListPanel({ section, compact }: { section: ListSectionKey; compa
     setBusyId(null);
   };
 
-  const move = async (r: Row, dir: -1 | 1) => {
+  /* Drag to reorder (press and hold on touch; arrow keys on the grip handle) */
+  const [orderNote, setOrderNote] = useState('');
+  const saveOrder = async (next: Row[]) => {
     if (!rows) return;
-    setBusyId(r.id);
     try {
-      const copy = rows.map((x) => ({ ...x }));
-      await moveRow(sec.table, copy, visible.map((v) => copy.find((c) => c.id === v.id)!), r.id, dir);
-      setRows(copy.sort((a, b) => Number(a.sort_order) - Number(b.sort_order)));
+      setRows(await reorderRows(sec.table, rows, next));
+      setOrderNote(`Order saved. ${next.slice(0, 3).map((r) => sec.row(r).title).join(', ')}${next.length > 3 ? '…' : ''}`);
     } catch (err) { ui.toast(friendly(err), 'error'); void load(); }
-    setBusyId(null);
   };
+  const sort = useDragSort(visible, saveOrder);
+  const list = sec.sortable ? sort.order : visible;
 
   const addButton = (
     <button type="button" className="btn btn-navy" onClick={() => setEditing('new')}>
@@ -119,19 +127,26 @@ export function ListPanel({ section, compact }: { section: ListSectionKey; compa
         </div>
       ) : (
         <>
-          <p className="count-note" aria-live="polite">
+          <p className="count-note">
             {filtered ? `Showing ${visible.length} of ${rows.length}` : `${rows.length} ${rows.length === 1 ? 'item' : 'items'}`}
+            {sec.sortable && visible.length > 1 && <span className="sort-hint"> · Drag to change the order on the website</span>}
           </p>
+          <p className="sr-only" aria-live="polite">{orderNote}</p>
           {!visible.length ? (
             <div className="empty"><Icon name="search" /><h3>Nothing matches</h3><p>Try a different search or filter.</p></div>
           ) : (
-            <div className="rows">
-              {visible.map((r, i) => {
+            <div className="rows" data-hue={HUES[section] ?? 'blue'}>
+              {list.map((r) => {
                 const v = sec.row(r);
                 const badges = (v.badges ?? []).filter((b): b is [string, 'sky' | 'gold' | 'green' | 'gray' | 'warn'] => !!b);
                 if (r.published === false) badges.unshift(['Hidden from website', 'gray']);
                 return (
-                  <article key={String(r.id)} className={`row${r.published === false ? ' is-hidden' : ''}`}>
+                  <article key={String(r.id)} className={`row${sec.sortable ? ' sortable' : ''}${r.published === false ? ' is-hidden' : ''}`} {...(sec.sortable ? sort.itemProps(r.id) : {})}>
+                    {sec.sortable && (
+                      <button type="button" className="icon-btn grip row-grip" title="Drag to reorder" aria-label={`Reorder ${v.title}: use the arrow keys, or drag`} {...sort.gripProps(r.id)}>
+                        <Icon name="grip" size="sm" />
+                      </button>
+                    )}
                     <div className="row-media">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       {v.image ? <img src={mediaSrc(v.image)} alt="" loading="lazy" /> : <Icon name={v.icon} />}
@@ -148,14 +163,6 @@ export function ListPanel({ section, compact }: { section: ListSectionKey; compa
                           <span className="switch" aria-hidden="true" />
                           <span>Visible<span className="sr-only">: {v.title}</span></span>
                         </label>
-                      )}
-                      {sec.sortable && (
-                        <span className="order-btns">
-                          <button type="button" className="icon-btn" aria-label={`Move ${v.title} up`} title={filtered ? 'Clear the search to reorder' : undefined}
-                            disabled={i === 0 || filtered || busyId != null} onClick={() => move(r, -1)}><Icon name="up" size="sm" /></button>
-                          <button type="button" className="icon-btn" aria-label={`Move ${v.title} down`} title={filtered ? 'Clear the search to reorder' : undefined}
-                            disabled={i === visible.length - 1 || filtered || busyId != null} onClick={() => move(r, 1)}><Icon name="down" size="sm" /></button>
-                        </span>
                       )}
                       <button type="button" className="icon-btn" aria-label={`Edit ${v.title}`} title="Edit" onClick={() => setEditing(r)}><Icon name="edit" /></button>
                       <button type="button" className="icon-btn danger" aria-label={`Delete ${v.title}`} title="Delete" onClick={() => remove(r)}><Icon name="trash" /></button>

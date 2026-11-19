@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { IconSprite } from '@/components/Icon';
 import { AdminUIProvider } from '@/components/admin/ui';
 import './admin.css';
 
@@ -11,7 +10,6 @@ export const metadata: Metadata = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <IconSprite />
       <AdminUIProvider>{children}</AdminUIProvider>
     </>
   );

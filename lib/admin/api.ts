@@ -6,7 +6,7 @@
 import { getBrowserClient } from '@/lib/supabase/browser';
 import { MEDIA_BUCKET } from '@/lib/supabase/config';
 import { revalidateSite } from '@/app/admin/actions';
-import type { FieldDef, ImageState } from '@/components/admin/fields';
+import { isGallery, type FieldDef, type ImageState, type MediaState } from '@/components/admin/fields';
 
 export const MAX_MB = 5;
 const TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -72,15 +72,31 @@ export async function persist(opts: {
   values: Record<string, unknown>;
   original?: Record<string, unknown> | null;
   fields: FieldDef[];
-  images: Record<string, ImageState>;
+  images: Record<string, MediaState>;
 }): Promise<Row> {
   const { table, id, single, values, original, fields, images } = opts;
   const sb = getBrowserClient();
   const imageFields = fields.filter((f) => f.type === 'image');
+  const galleryFields = fields.filter((f) => f.type === 'gallery');
   const uploaded: string[] = [];
   try {
-    for (const f of imageFields) {
+    // Gallery fields: upload new photos in their place in the list; the first one also becomes the cover
+    for (const f of galleryFields) {
       const st = images[f.key];
+      if (!isGallery(st)) continue;
+      const urls: string[] = [];
+      for (const it of st.items) {
+        if (it.url) { urls.push(it.url); continue; }
+        if (!it.file) continue;
+        const url = await uploadImage(it.file, f.folder || table);
+        uploaded.push(url);
+        urls.push(url);
+      }
+      values[f.key] = urls;
+      if (f.cover) values[f.cover] = urls[0] ?? null;
+    }
+    for (const f of imageFields) {
+      const st = images[f.key] as ImageState | undefined;
       if (st?.file) {
         const url = await uploadImage(st.file, f.folder || table);
         uploaded.push(url);
@@ -97,6 +113,10 @@ export async function persist(opts: {
       for (const f of imageFields) {
         if (original[f.key] && original[f.key] !== saved[f.key]) void removeImage(original[f.key]);
       }
+      for (const f of galleryFields) {
+        const kept = new Set(asList(saved[f.key]));
+        asList(original[f.key]).filter((u) => !kept.has(u)).forEach((u) => void removeImage(u));
+      }
     }
     void publish();
     return saved;
@@ -109,9 +129,11 @@ export async function persist(opts: {
 export async function deleteRow(table: string, row: Row): Promise<void> {
   const { error } = await getBrowserClient().from(table).delete().eq('id', row.id);
   if (error) throw error;
-  if (row.image_url) void removeImage(row.image_url);
+  new Set([row.image_url, ...asList(row.images)].filter(Boolean)).forEach((u) => void removeImage(u));
   void publish();
 }
+
+const asList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && !!x) : []);
 
 export async function setPublished(table: string, id: Row['id'], on: boolean): Promise<void> {
   const { error } = await getBrowserClient().from(table).update({ published: on }).eq('id', id);
@@ -119,19 +141,21 @@ export async function setPublished(table: string, id: Row['id'], on: boolean): P
   void publish();
 }
 
-/** Move an item one place up/down among the visible items, then renumber the whole list. */
-export async function moveRow(table: string, all: Row[], visible: Row[], id: Row['id'], dir: -1 | 1): Promise<void> {
-  const vi = visible.findIndex((r) => r.id === id);
-  const other = visible[vi + dir];
-  if (!other) return;
-  const order = [...all].sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
-  const [item] = order.splice(order.findIndex((r) => r.id === id), 1);
-  order.splice(order.findIndex((r) => r.id === other.id) + (dir > 0 ? 1 : 0), 0, item);
-  const changes = order.map((r, i) => ({ r, n: (i + 1) * 10 })).filter(({ r, n }) => r.sort_order !== n);
+/**
+ * Save a new order after drag-and-drop. `visibleOrder` is the new order of the items that
+ * were on screen (maybe a filtered subset); hidden-by-filter items keep their places.
+ * Returns the whole list in its new order with renumbered sort_order.
+ */
+export async function reorderRows<T extends Row>(table: string, all: T[], visibleOrder: T[]): Promise<T[]> {
+  const sorted = [...all].sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
+  const shown = new Set(visibleOrder.map((r) => r.id));
+  let k = 0;
+  const merged = sorted.map((r) => (shown.has(r.id) ? visibleOrder[k++] : r));
+  const changes = merged.map((r, i) => ({ r, n: (i + 1) * 10 })).filter(({ r, n }) => r.sort_order !== n);
   const sb = getBrowserClient();
   const results = await Promise.all(changes.map(({ r, n }) => sb.from(table).update({ sort_order: n }).eq('id', r.id)));
   const bad = results.find((x) => x.error);
   if (bad?.error) throw bad.error;
-  changes.forEach(({ r, n }) => { r.sort_order = n; });
   void publish();
+  return merged.map((r, i) => ({ ...r, sort_order: (i + 1) * 10 }));
 }

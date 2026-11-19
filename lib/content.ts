@@ -32,7 +32,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     return data as SiteContent[K];
   };
 
-  const [info, services, events, ministries, officers, milestones, albums, photos, fund, giving, givingMethods, resources] =
+  const [info, services, events, ministries, officers, milestones, albums, photos, fund, giving, givingMethods, resources, verses] =
     await Promise.all([
       single('info', 'church_info'),
       list('services', 'services', [['day_of_week'], ['start_time']]),
@@ -46,7 +46,10 @@ export async function getSiteContent(): Promise<SiteContent> {
       single('giving', 'giving'),
       list('givingMethods', 'giving_methods', [['sort_order'], ['created_at']]),
       list('resources', 'resources', [['sort_order'], ['created_at']]),
+      list('verses', 'verses', [['sort_order'], ['created_at']]),
     ]);
 
-  return { info, services, events, ministries, officers, milestones, albums, photos, fund, giving, givingMethods, resources };
+  // With no published verses, the hero keeps the built-in list rather than going blank
+  return { info, services, events, ministries, officers, milestones, albums, photos, fund, giving, givingMethods, resources,
+    verses: verses.length ? verses : DEFAULT_CONTENT.verses };
 }

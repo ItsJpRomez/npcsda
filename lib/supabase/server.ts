@@ -27,10 +27,14 @@ export function getPublicClient(): SupabaseClient {
 }
 
 /** True when the signed-in user is listed in admin_users. */
-export async function getAdmin(): Promise<{ email: string } | null> {
+export async function getAdmin(): Promise<{ email: string; name: string } | null> {
   const sb = await getServerClient();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data, error } = await sb.rpc('is_admin');
-  return !error && data === true ? { email: user.email ?? '' } : null;
+  if (error || data !== true) return null;
+  // Display name, if one is set on the account (Supabase → Authentication → Users → Display name)
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const name = [meta.display_name, meta.full_name, meta.name].find((v) => typeof v === 'string' && v.trim()) as string | undefined;
+  return { email: user.email ?? '', name: name?.trim() ?? '' };
 }

@@ -2,7 +2,7 @@ import type { SiteContent } from './types';
 
 /*
  * The website's built-in content. It is shown when Supabase isn't connected yet
- * (or can't be reached), and it matches supabase/seed.sql, which copies the same
+ * (or can't be reached), and it matches the seed migration (supabase/migrations/*_seed_content.sql), which copies the same
  * content into the database. Once Supabase is connected, edit content in the
  * Admin Panel instead of here.
  */
@@ -46,25 +46,25 @@ export const DEFAULT_CONTENT: SiteContent = {
       id: 'e1', kind: 'event', title: 'Week of Prayer', category: 'Evangelism',
       description: 'Nightly worship and messages of hope. Bring a friend!',
       starts_at: '2026-11-22T19:00:00+08:00', ends_at: '2026-11-29T21:00:00+08:00', schedule_note: 'Nightly, 7:00 PM',
-      location: null, image_url: null, link_url: null, status: 'upcoming', is_featured: true, published: true,
+      location: null, image_url: null, images: [], link_url: null, status: 'upcoming', is_featured: true, published: true,
     },
     {
       id: 'e2', kind: 'event', title: 'Health Expo & Free Check-ups', category: 'Community',
       description: 'Blood pressure, BMI, and healthy-cooking demo for the whole barangay.',
       starts_at: '2026-12-06T08:00:00+08:00', ends_at: '2026-12-06T12:00:00+08:00', schedule_note: null,
-      location: null, image_url: null, link_url: null, status: 'upcoming', is_featured: false, published: true,
+      location: null, image_url: null, images: [], link_url: null, status: 'upcoming', is_featured: false, published: true,
     },
     {
       id: 'e3', kind: 'event', title: 'Christmas Cantata', category: 'Music',
       description: "An evening of carols and the story of Christ's birth, presented by our choir and youth.",
       starts_at: '2026-12-20T18:00:00+08:00', ends_at: null, schedule_note: null,
-      location: null, image_url: null, link_url: null, status: 'upcoming', is_featured: false, published: true,
+      location: null, image_url: null, images: [], link_url: null, status: 'upcoming', is_featured: false, published: true,
     },
     {
       id: 'e4', kind: 'announcement', title: 'Baptismal class', category: null,
       description: 'Meets every Sabbath at 4:00 PM after AY. Talk to Pastor Jemuel to join.',
       starts_at: null, ends_at: null, schedule_note: null,
-      location: null, image_url: null, link_url: null, status: 'ongoing', is_featured: false, published: true,
+      location: null, image_url: null, images: [], link_url: null, status: 'ongoing', is_featured: false, published: true,
     },
   ],
 
@@ -151,5 +151,18 @@ export const DEFAULT_CONTENT: SiteContent = {
     { ...listed('r2', 20), category: 'sabbath_school', title: 'Sabbath School Lessons', description: "This quarter's Adult Bible Study Guide, with a daily lesson to prepare for Sabbath.", url: 'https://www.sabbath.school/', image_url: null },
     { ...listed('r3', 30), category: 'devotional', title: 'Daily Devotionals', description: 'Start each morning with daily devotional readings and the writings of Ellen G. White.', url: 'https://egwwritings.org/', image_url: null },
     { ...listed('r4', 40), category: 'prayer', title: 'Prayer Requests', description: "Our prayer team would be honored to pray with you. Share what's on your heart.", url: '#prayer', image_url: null },
+  ],
+
+  verses: [
+    { ...listed('v1', 10), text: 'But grow in grace, and in the knowledge of our Lord and Saviour Jesus Christ. To him be glory both now and for ever. Amen.', reference: '2 Peter 3:18' },
+    { ...listed('v2', 20), text: 'Come unto me, all ye that labour and are heavy laden, and I will give you rest.', reference: 'Matthew 11:28' },
+    { ...listed('v3', 30), text: 'Remember the sabbath day, to keep it holy.', reference: 'Exodus 20:8' },
+    { ...listed('v4', 40), text: 'God is our refuge and strength, a very present help in trouble.', reference: 'Psalm 46:1' },
+    { ...listed('v5', 50), text: 'Thy word is a lamp unto my feet, and a light unto my path.', reference: 'Psalm 119:105' },
+    { ...listed('v6', 60), text: 'For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.', reference: 'John 3:16' },
+    { ...listed('v7', 70), text: 'Trust in the LORD with all thine heart; and lean not unto thine own understanding.', reference: 'Proverbs 3:5' },
+    { ...listed('v8', 80), text: 'Here is the patience of the saints: here are they that keep the commandments of God, and the faith of Jesus.', reference: 'Revelation 14:12' },
+    { ...listed('v9', 90), text: 'The LORD is my shepherd; I shall not want.', reference: 'Psalm 23:1' },
+    { ...listed('v10', 100), text: 'Jesus Christ the same yesterday, and to day, and for ever.', reference: 'Hebrews 13:8' },
   ],
 };

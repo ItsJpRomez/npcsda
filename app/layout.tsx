@@ -15,8 +15,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: '#ffffff' };
 
-/* Applies the saved light/dark choice before the page paints (default: light). */
-const themeScript = `(function(){var r=document.documentElement;r.classList.add('js');var t=null;try{t=localStorage.getItem('npc-theme')}catch(e){}r.setAttribute('data-theme',t==='dark'?'dark':'light');})();`;
+/* Applies the light/dark choice before the page paints: the visitor's saved
+   choice, otherwise their device setting. */
+const themeScript = `(function(){var r=document.documentElement;r.classList.add('js');var t=null;try{t=localStorage.getItem('npc-theme')}catch(e){}if(t!=='dark'&&t!=='light'){t=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'}r.setAttribute('data-theme',t);})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -18,3 +18,10 @@ next-env.d.ts
 .DS_Store
 npm-debug.log*
 _static-site-backup/
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+# local editor/agent config
+.claude/

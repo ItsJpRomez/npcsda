@@ -1,6 +1,8 @@
 -- =========================================================
--- NPC SDA Church website: database schema
--- Run this once in Supabase → SQL Editor → New query → Run.
+-- Migration 1 of 2 — NPC SDA Church website: database schema
+-- Tables, Row Level Security, and the "media" photo bucket.
+-- Apply with `npx supabase db push`, or paste into
+-- Supabase → SQL Editor → New query → Run (before migration 2).
 -- Safe to run again: it only creates what is missing and
 -- refreshes the security policies.
 -- =========================================================

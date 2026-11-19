@@ -26,7 +26,7 @@ components/site/     public page sections (server) and interactive bits (client)
 components/admin/    Admin Panel UI: lists, forms, gallery manager, dashboard
 lib/                 types, built-in content, formatting, Supabase clients, data loading
 proxy.ts             keeps /admin behind sign-in
-supabase/            schema.sql (tables + security rules) and seed.sql (starting content)
+supabase/migrations/ database migrations: tables + security rules, then starting content
 public/assets/       logo and church images
 ```
 
@@ -38,3 +38,5 @@ public/assets/       logo and church images
 | `npm run build` | Production build (also type-checks) |
 | `npm run start` | Run the production build |
 | `npm run typecheck` | Type-check without building |
+| `npm run db:push` | Apply new database migrations to the linked Supabase project (see ADMIN-SETUP.md) |
+| `npm run db:new -- name` | Create a new, empty migration file |

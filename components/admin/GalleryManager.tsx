@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import { mediaSrc } from '@/lib/format';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import { ACCEPT, MAX_MB, checkFile, deleteRow, friendly, moveRow, persist, publish, removeImage, setPublished, uploadImage, type Row } from '@/lib/admin/api';
+import { ACCEPT, MAX_MB, checkFile, deleteRow, friendly, persist, publish, removeImage, reorderRows, setPublished, uploadImage, type Row } from '@/lib/admin/api';
 import type { Album, Photo } from '@/lib/types';
-import { Icon } from '../Icon';
+import { Icon } from './Icon';
 import type { FieldDef } from './fields';
 import { FormDialog } from './FormDialog';
 import { ErrorBox, Modal, Spinner, useUI } from './ui';
+import { useDragSort } from './useDragSort';
 
 interface Pending { file: File; url: string; caption: string }
 
@@ -104,14 +105,17 @@ export function GalleryManager() {
     try { await deleteRow('photos', p as unknown as Row); ui.toast('Photo deleted.'); await load(); }
     catch (err) { ui.toast(friendly(err), 'error'); }
   };
-  const move = async (p: Photo, dir: -1 | 1) => {
+  /* ---- drag to reorder (also arrow keys on the grip) ---- */
+  const [orderNote, setOrderNote] = useState('');
+  const saveOrder = async (next: Photo[]) => {
     if (!photos) return;
     try {
-      const copy = photos.map((x) => ({ ...x })) as unknown as Row[];
-      await moveRow('photos', copy, visible.map((v) => copy.find((c) => c.id === v.id)!), p.id, dir);
-      setPhotos((copy as unknown as Photo[]).sort((a, b) => a.sort_order - b.sort_order));
+      const merged = await reorderRows('photos', photos as unknown as Row[], next as unknown as Row[]);
+      setPhotos(merged as unknown as Photo[]);
+      setOrderNote(`Order saved. ${next.map((p) => p.caption || 'Photo').slice(0, 3).join(', ')}${next.length > 3 ? '…' : ''}`);
     } catch (err) { ui.toast(friendly(err), 'error'); void load(); }
   };
+  const sort = useDragSort(visible, saveOrder);
 
   const photoFields: FieldDef[] = [
     { key: 'image_url', label: 'Photo', type: 'image', folder: 'gallery', full: true },
@@ -195,14 +199,18 @@ export function GalleryManager() {
         <div className="tiles" aria-busy="true">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton tile" />)}</div>
       ) : (
         <>
-          <p className="count-note" aria-live="polite">{photos.length ? (filtered ? `Showing ${visible.length} of ${photos.length} photos` : `${photos.length} photos`) : ''}</p>
-          <div className="tiles">
+          <p className="count-note">
+            {photos.length ? (filtered ? `Showing ${visible.length} of ${photos.length} photos` : `${photos.length} photos`) : ''}
+            {visible.length > 1 && <span className="sort-hint"> · Drag photos to change their order on the website</span>}
+          </p>
+          <p className="sr-only" aria-live="polite">{orderNote}</p>
+          <div className={`tiles${sort.dragId != null ? ' is-sorting' : ''}`}>
             {!photos.length ? (
               <div className="empty" style={{ gridColumn: '1/-1' }}><Icon name="camera" /><h3>No photos yet</h3><p>Upload your first photos above.</p></div>
             ) : !visible.length ? (
               <div className="empty" style={{ gridColumn: '1/-1' }}><Icon name="search" /><h3>Nothing matches</h3><p>Try a different search or album.</p></div>
-            ) : visible.map((p, i) => (
-              <article key={p.id} className={`tile${p.published ? '' : ' is-hidden'}`}>
+            ) : sort.order.map((p) => (
+              <article key={p.id} className={`tile sortable${p.published ? '' : ' is-hidden'}`} {...sort.itemProps(p.id)}>
                 <div className="tile-img">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {p.image_url ? <img src={mediaSrc(p.image_url)} alt={p.description || p.caption || ''} loading="lazy" /> : <Icon name="image" />}
@@ -216,8 +224,7 @@ export function GalleryManager() {
                     <span className="sr-only">Show {p.caption || 'photo'} on the website</span>
                   </label>
                   <span className="spacer" />
-                  <button type="button" className="icon-btn" aria-label="Move earlier" disabled={i === 0 || filtered} onClick={() => move(p, -1)}><Icon name="up" size="sm" /></button>
-                  <button type="button" className="icon-btn" aria-label="Move later" disabled={i === visible.length - 1 || filtered} onClick={() => move(p, 1)}><Icon name="down" size="sm" /></button>
+                  <button type="button" className="icon-btn grip" title="Drag to reorder" aria-label={`Reorder ${p.caption || 'photo'}: use the arrow keys, or drag`} {...sort.gripProps(p.id)}><Icon name="grip" size="sm" /></button>
                   <button type="button" className="icon-btn" aria-label={`Edit ${p.caption || 'photo'}`} onClick={() => setEditing(p)}><Icon name="edit" size="sm" /></button>
                   <button type="button" className="icon-btn danger" aria-label={`Delete ${p.caption || 'photo'}`} onClick={() => remove(p)}><Icon name="trash" size="sm" /></button>
                 </div>

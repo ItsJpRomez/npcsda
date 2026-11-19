@@ -4,46 +4,22 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../Icon';
 
 const LINKS: [string, string][] = [
-  ['#top', 'Home'], ['#about', 'About'], ['#services', 'Services'], ['#events', 'Events'],
-  ['#ministries', 'Ministries'], ['#resources', 'Resources'], ['#give', 'Give'],
+  ['home', 'Home'], ['about', 'About'], ['services', 'Services'], ['events', 'Events'],
+  ['ministries', 'Ministries'], ['resources', 'Resources'], ['gallery', 'Gallery'],
 ];
 
-type Theme = 'light' | 'dark';
-
+/** Sticky glass header: brand, section links with scroll spy, Give + Visit us. */
 export function SiteHeader({ shortName }: { shortName: string }) {
-  const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [theme, setTheme] = useState<Theme>('light');
-  const [active, setActive] = useState('#top');
+  const [active, setActive] = useState('home');
   const toggleRef = useRef<HTMLButtonElement>(null);
 
-  // Theme: the inline script in the layout applied the saved choice before paint
+  // Mobile menu: Escape / outside click / growing to desktop width close it
   useEffect(() => {
-    setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
-  }, []);
-  const switchTheme = () => {
-    const next: Theme = theme === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', next);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'light' ? '#ffffff' : '#0b1622');
-    try { localStorage.setItem('npc-theme', next); } catch { /* storage blocked */ }
-    setTheme(next);
-  };
-
-  // Solid header after scrolling
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // Mobile menu: body class for the scrim, Escape / outside click / wide screen close it
-  useEffect(() => {
-    document.body.classList.toggle('nav-open', open);
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); toggleRef.current?.focus(); } };
     const onClick = (e: MouseEvent) => { if (!(e.target as Element).closest('.site-header')) setOpen(false); };
-    const wide = window.matchMedia('(min-width: 1101px)');
+    const wide = window.matchMedia('(min-width: 1100px)');
     const onWide = (m: MediaQueryListEvent) => { if (m.matches) setOpen(false); };
     document.addEventListener('keydown', onKey);
     document.addEventListener('click', onClick);
@@ -55,51 +31,51 @@ export function SiteHeader({ shortName }: { shortName: string }) {
     };
   }, [open]);
 
-  // Scroll spy
+  // Scroll spy: highlight the section in the middle of the screen
   useEffect(() => {
-    const targets = [...LINKS.map(([h]) => h), '#visit']
-      .map((h) => (h === '#top' ? document.querySelector('.hero') : document.querySelector(h)))
-      .filter((el): el is Element => !!el);
+    const ids = [...LINKS.map(([id]) => id), 'fund', 'give', 'officers', 'visit'];
+    const targets = ids.map((id) => document.getElementById(id)).filter((el): el is HTMLElement => !!el);
     const spy = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        setActive(entry.target.classList.contains('hero') ? '#top' : `#${entry.target.id}`);
-      });
+      entries.forEach((entry) => { if (entry.isIntersecting) setActive(entry.target.id); });
     }, { rootMargin: '-45% 0px -50% 0px' });
     targets.forEach((t) => spy.observe(t));
     return () => spy.disconnect();
   }, []);
 
-  const label = `Switch to ${theme === 'light' ? 'dark' : 'light'} mode`;
+  // Light / dark: the inline script in app/layout.tsx sets data-theme before paint
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('npc-theme', next); } catch { /* preference only */ }
+  };
+
+  const links = LINKS.map(([id, label]) => (
+    <a key={id} href={`#${id}`} className="nav-link" aria-current={active === id ? 'true' : undefined} onClick={() => setOpen(false)}>{label}</a>
+  ));
+
   return (
-    <header className={`site-header${scrolled ? ' is-scrolled' : ''}`} id="top">
+    <header className="site-header">
       <div className="header-inner">
-        <a href="#top" className="brand" aria-label={`${shortName}, home`}>
+        <a href="#home" className="brand" aria-label={`${shortName}, home`}>
           <span className="logo-badge" aria-hidden="true" />
-          <span className="brand-text">
-            <strong>{shortName}</strong>
-            <small>Quezon City</small>
-          </span>
+          <span className="brand-text"><strong>{shortName}</strong><small>Quezon City</small></span>
         </a>
 
-        <nav className={`main-nav${open ? ' is-open' : ''}`} id="main-nav" aria-label="Main" onClick={(e) => { if ((e.target as Element).closest('a')) setOpen(false); }}>
-          <ul>
-            {LINKS.map(([href, text]) => (
-              <li key={href}><a href={href} className={active === href ? 'is-active' : undefined}>{text}</a></li>
-            ))}
-            <li><a href="#visit" className={`nav-cta${active === '#visit' ? ' is-active' : ''}`}>Contact Us</a></li>
-          </ul>
-        </nav>
+        <nav className="main-nav" aria-label="Main">{links}</nav>
 
         <div className="header-actions">
-          <button className="icon-btn theme-toggle" type="button" aria-label={label} title={label} onClick={switchTheme}>
-            <Icon name={theme === 'light' ? 'moon' : 'sun'} />
+          <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label="Toggle dark mode" title="Toggle dark mode">
+            <Icon name="moon" px={18} className="icon when-light" />
+            <Icon name="sun" px={18} className="icon when-dark" />
           </button>
+          <a href="#give" className="btn btn-soft btn-md give-btn"><Icon name="heart-handshake" px={17} />Give</a>
+          <a href="#visit" className="btn btn-primary btn-md btn-glow">Visit us</a>
           <button
             ref={toggleRef}
-            className="icon-btn nav-toggle"
+            className="menu-toggle"
             type="button"
-            aria-controls="main-nav"
+            aria-controls="mobile-nav"
             aria-expanded={open}
             aria-label={open ? 'Close menu' : 'Open menu'}
             onClick={() => setOpen((o) => !o)}
@@ -108,6 +84,12 @@ export function SiteHeader({ shortName }: { shortName: string }) {
           </button>
         </div>
       </div>
+      {open && (
+        <nav className="mobile-nav" id="mobile-nav" aria-label="Main">
+          {links}
+          <a href="#give" className="nav-link nav-give" onClick={() => setOpen(false)}><Icon name="heart-handshake" />Give</a>
+        </nav>
+      )}
     </header>
   );
 }
