@@ -1,8 +1,8 @@
 -- =========================================================
--- NPC SDA Church website: starting content
+-- Migration 2 of 2 — NPC SDA Church website: starting content
 -- Copies everything currently on the website into the database,
 -- so nothing is lost when the Admin Panel takes over.
--- Run AFTER schema.sql. Safe to run again: each table is only
+-- Runs AFTER migration 1 (initial_schema). Safe to run again: each table is only
 -- filled if it is still empty, so it never overwrites your edits.
 -- Items marked "placeholder" still need real details.
 -- =========================================================

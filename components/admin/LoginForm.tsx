@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import { Icon } from '../Icon';
+import { Icon } from './Icon';
 import { Busy } from './ui';
 
 type Mode = 'login' | 'reset' | 'newpass';

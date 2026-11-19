@@ -2,8 +2,8 @@
 
 import { useId, useRef, useState, type FormEvent } from 'react';
 import { friendly } from '@/lib/admin/api';
-import { Icon } from '../Icon';
-import { Field, focusFirstError, fromForm, toForm, type Errors, type FieldDef, type FormState, type ImageState } from './fields';
+import { Icon } from './Icon';
+import { Field, focusFirstError, fromForm, toForm, type Errors, type FieldDef, type FormState, type MediaState } from './fields';
 import { Busy, Modal, useUI } from './ui';
 
 export interface FormDialogProps {
@@ -11,7 +11,7 @@ export interface FormDialogProps {
   fields: FieldDef[];
   initial: Record<string, unknown>;
   validate?: (v: Record<string, unknown>) => [string, string] | null;
-  onSave: (values: Record<string, unknown>, images: Record<string, ImageState>) => Promise<void>;
+  onSave: (values: Record<string, unknown>, images: Record<string, MediaState>) => Promise<void>;
   onClose: () => void;
 }
 
@@ -20,7 +20,7 @@ export function FormDialog({ title, fields, initial, validate, onSave, onClose }
   const ui = useUI();
   const prefix = useId();
   const [form, setForm] = useState<FormState>(() => toForm(fields, initial));
-  const [images, setImages] = useState<Record<string, ImageState>>({});
+  const [images, setImages] = useState<Record<string, MediaState>>({});
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
   const dirty = useRef(false);

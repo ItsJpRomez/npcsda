@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { fromLocalInput, hm, mediaSrc, toLocalInput } from '@/lib/format';
 import { ACCEPT, MAX_MB, checkFile } from '@/lib/admin/api';
-import { Icon } from '../Icon';
+import { Icon } from './Icon';
 
 export type FieldType =
-  | 'text' | 'textarea' | 'select' | 'checkbox' | 'image' | 'datetime' | 'time'
+  | 'text' | 'textarea' | 'select' | 'checkbox' | 'image' | 'gallery' | 'datetime' | 'time'
   | 'money' | 'number' | 'url' | 'link' | 'email' | 'tel';
 
 export interface FieldDef {
@@ -19,13 +19,20 @@ export interface FieldDef {
   placeholder?: string;
   options?: [string | number, string][];
   cast?: 'int';
-  folder?: string;   // storage folder for image fields
+  folder?: string;   // storage folder for image and gallery fields
+  cover?: string;    // gallery fields: column that mirrors the first photo
+  maxItems?: number; // gallery fields: most photos allowed
   min?: number;
   max?: number;
   rows?: number;
 }
 
 export interface ImageState { file: File | null; removed: boolean; preview: string | null }
+/** One photo in a gallery field: already saved (url) or chosen and waiting for Save (file). */
+export interface GalleryItem { id: string; url?: string; file?: File; preview: string }
+export interface GalleryState { items: GalleryItem[] }
+export type MediaState = ImageState | GalleryState;
+export const isGallery = (m: MediaState | undefined): m is GalleryState => !!m && 'items' in m;
 export type FormState = Record<string, string | boolean>;
 export type Errors = Record<string, string>;
 
@@ -34,7 +41,7 @@ export function toForm(fields: FieldDef[], row: Record<string, unknown>): FormSt
   const out: FormState = {};
   for (const f of fields) {
     const v = row[f.key];
-    if (f.type === 'image') continue;
+    if (f.type === 'image' || f.type === 'gallery') continue;
     if (f.type === 'checkbox') out[f.key] = Boolean(v);
     else if (f.type === 'datetime') out[f.key] = toLocalInput(v as string | null);
     else if (f.type === 'time') out[f.key] = hm(v as string | null);
@@ -48,7 +55,7 @@ export function fromForm(fields: FieldDef[], form: FormState): { values: Record<
   const values: Record<string, unknown> = {};
   const errors: Errors = {};
   for (const f of fields) {
-    if (f.type === 'image') continue;
+    if (f.type === 'image' || f.type === 'gallery') continue;
     const raw = form[f.key];
     if (f.type === 'checkbox') { values[f.key] = Boolean(raw); continue; }
     const s = String(raw ?? '').trim();
@@ -95,9 +102,9 @@ export function Field({ f, idPrefix, value, error, onChange, image, onImage, cur
   value: string | boolean | undefined;
   error?: string;
   onChange: (key: string, v: string | boolean) => void;
-  image?: ImageState;
-  onImage?: (key: string, st: ImageState) => void;
-  currentImage?: string | null;
+  image?: MediaState;
+  onImage?: (key: string, st: MediaState) => void;
+  currentImage?: unknown;
 }) {
   const id = `${idPrefix}-${f.key}`;
   const cls = `field${f.full ? ' full' : ''}`;
@@ -121,7 +128,11 @@ export function Field({ f, idPrefix, value, error, onChange, image, onImage, cur
   }
 
   if (f.type === 'image') {
-    return <ImageField f={f} id={id} cls={cls} state={image} current={currentImage ?? null} onImage={(st) => onImage?.(f.key, st)} />;
+    return <ImageField f={f} id={id} cls={cls} state={isGallery(image) ? undefined : image} current={typeof currentImage === 'string' ? currentImage : null} onImage={(st) => onImage?.(f.key, st)} />;
+  }
+  if (f.type === 'gallery') {
+    const saved = Array.isArray(currentImage) ? (currentImage as string[]).filter(Boolean) : [];
+    return <GalleryField f={f} id={id} cls={cls} state={isGallery(image) ? image : undefined} saved={saved} onChange={(st) => onImage?.(f.key, st)} />;
   }
 
   const v = String(value ?? '');
@@ -198,6 +209,78 @@ function ImageField({ f, id, cls, state, current, onImage }: {
           {shown && <button type="button" className="link-btn danger" onClick={remove}>Remove photo</button>}
           <p className="help">{f.help ?? `JPG, PNG or WebP, up to ${MAX_MB} MB. Saved when you click Save.`}</p>
           {problem && <p className="error" role="alert">{problem}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Several photos: add, reorder, remove; the first is the cover ---------- */
+let nextId = 0;
+function GalleryField({ f, id, cls, state, saved, onChange }: {
+  f: FieldDef; id: string; cls: string; state?: GalleryState; saved: string[]; onChange: (st: GalleryState) => void;
+}) {
+  const max = f.maxItems ?? 12;
+  const [problems, setProblems] = useState<string[]>([]);
+  const items: GalleryItem[] = state?.items ?? saved.map((url) => ({ id: url, url, preview: mediaSrc(url) }));
+  const previews = useRef<Set<string>>(new Set());
+  useEffect(() => () => { previews.current.forEach((u) => URL.revokeObjectURL(u)); }, []);
+
+  const set = (next: GalleryItem[]) => onChange({ items: next });
+  const add = (files: FileList | null) => {
+    if (!files?.length) return;
+    const room = max - items.length;
+    const bad: string[] = [];
+    const added: GalleryItem[] = [];
+    for (const file of Array.from(files)) {
+      const p = checkFile(file);
+      if (p) { bad.push(p); continue; }
+      if (added.length >= room) { bad.push(`Only ${max} photos can be added, so some were skipped.`); break; }
+      const preview = URL.createObjectURL(file);
+      previews.current.add(preview);
+      added.push({ id: `new-${++nextId}`, file, preview });
+    }
+    setProblems(bad);
+    if (added.length) set([...items, ...added]);
+  };
+  const move = (i: number, to: number) => {
+    if (to < 0 || to >= items.length) return;
+    const next = [...items];
+    const [it] = next.splice(i, 1);
+    next.splice(to, 0, it);
+    set(next);
+  };
+  const remove = (i: number) => set(items.filter((_, n) => n !== i));
+
+  return (
+    <div className={cls}>
+      <span className="field-label" id={`${id}-label`}>{f.label}</span>
+      <div className="gallery-field">
+        {items.length > 0 && (
+          <ol className="gf-grid" aria-labelledby={`${id}-label`}>
+            {items.map((it, i) => (
+              <li key={it.id} className="gf-item">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={it.preview} alt={`Photo ${i + 1}${it.file ? ' (new)' : ''}`} />
+                {i === 0 ? <span className="badge sky gf-cover">Cover</span> : (
+                  <button type="button" className="gf-make-cover" onClick={() => move(i, 0)}>Make cover</button>
+                )}
+                <div className="gf-tools">
+                  <button type="button" className="icon-btn sm" aria-label={`Move photo ${i + 1} earlier`} disabled={i === 0} onClick={() => move(i, i - 1)}><Icon name="chevron-left" size="sm" /></button>
+                  <button type="button" className="icon-btn sm" aria-label={`Move photo ${i + 1} later`} disabled={i === items.length - 1} onClick={() => move(i, i + 1)}><Icon name="chevron" size="sm" /></button>
+                  <button type="button" className="icon-btn sm danger" aria-label={`Remove photo ${i + 1}`} onClick={() => remove(i)}><Icon name="trash" size="sm" /></button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+        <div className="img-actions">
+          <label className={`btn btn-light file-btn${items.length >= max ? ' is-disabled' : ''}`}>
+            <Icon name="upload" size="sm" /> <span>{items.length ? 'Add more photos' : 'Choose photos'}</span>
+            <input type="file" multiple accept={ACCEPT} disabled={items.length >= max} aria-labelledby={`${id}-label`} onChange={(e) => { add(e.target.files); e.target.value = ''; }} />
+          </label>
+          <p className="help">{f.help ?? `Up to ${max} photos. JPG, PNG or WebP, up to ${MAX_MB} MB each. The first photo is the cover. Saved when you click Save.`}</p>
+          {problems.map((p, i) => <p key={i} className="error" role="alert">{p}</p>)}
         </div>
       </div>
     </div>

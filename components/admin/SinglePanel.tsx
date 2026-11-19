@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import { fmtDate } from '@/lib/format';
 import { getBrowserClient } from '@/lib/supabase/browser';
 import { friendly, persist } from '@/lib/admin/api';
-import { Field, focusFirstError, fromForm, toForm, type Errors, type FormState, type ImageState } from './fields';
+import { Field, focusFirstError, fromForm, toForm, type Errors, type FormState, type MediaState } from './fields';
 import { SINGLES, type SingleSection, type SingleSectionKey } from './sections';
 import { Busy, ErrorBox, useUI } from './ui';
 
@@ -16,7 +16,7 @@ export function SinglePanel({ section, after }: { section: SingleSectionKey; aft
   const prefix = useId();
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
   const [form, setForm] = useState<FormState>({});
-  const [images, setImages] = useState<Record<string, ImageState>>({});
+  const [images, setImages] = useState<Record<string, MediaState>>({});
   const [errors, setErrors] = useState<Errors>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
@@ -91,7 +91,7 @@ export function SinglePanel({ section, after }: { section: SingleSectionKey; aft
             )}
           </section>
         ))}
-        <div className="save-bar">
+        <div className={after ? 'save-bar inline' : 'save-bar'}>
           <span className="status" aria-live="polite">{status}</span>
           <button type="submit" className="btn btn-navy" disabled={busy}><Busy busy={busy}>Save changes</Busy></button>
         </div>

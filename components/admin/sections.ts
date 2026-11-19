@@ -101,7 +101,7 @@ export const SECTIONS = {
       { key: 'schedule_note', label: 'Time note', type: 'text', full: true, placeholder: 'Optional, e.g. Nightly, 7:00 PM', help: 'Shown instead of the times, for events that run over several days.' },
       { key: 'description', label: 'Description', type: 'textarea', full: true },
       { key: 'link_url', label: 'Registration or information link', type: 'url', full: true, placeholder: 'https://…' },
-      { key: 'image_url', label: 'Cover photo', type: 'image', folder: 'events', full: true },
+      { key: 'images', label: 'Photos', type: 'gallery', folder: 'events', cover: 'image_url', maxItems: 12, full: true },
       { key: 'is_featured', label: 'Feature this event (shown large at the top)', type: 'checkbox', full: true },
       published,
     ],
@@ -123,7 +123,7 @@ export const SECTIONS = {
 
   ministries: {
     table: 'ministries', title: 'Ministries', singular: 'ministry', icon: 'users', sortable: true,
-    intro: 'The first ministry is shown largest on the website. Use the arrows to change the order.',
+    intro: 'The first ministry is shown largest on the website. Drag the rows to change the order.',
     search: ['name', 'description', 'leader'],
     defaults: { icon: 'users', published: true },
     fields: [
@@ -140,7 +140,7 @@ export const SECTIONS = {
 
   officers: {
     table: 'officers', title: 'Church officers', singular: 'officer', icon: 'user', sortable: true,
-    intro: 'Turn on “pastor card” for the one person shown large at the top (usually the pastor). Use the arrows to change the order.',
+    intro: 'Turn on “pastor card” for the one person shown large at the top (usually the pastor). Drag the rows to change the order.',
     search: ['full_name', 'position', 'bio'],
     defaults: { published: true },
     fields: [
@@ -187,6 +187,19 @@ export const SECTIONS = {
       published,
     ],
     row: (r) => ({ image: r.image_url as string | null, icon: RES_ICON[s(r.category)] ?? 'book', title: s(r.title), sub: s(r.url), badges: [[label(RES_CATS, r.category), 'sky']] }),
+  },
+
+  verses: {
+    table: 'verses', title: 'Hero verses', singular: 'verse', icon: 'quote', sortable: true,
+    intro: 'Bible verses that take turns at the top of the home page. Each one stays up long enough to read (7 to 14 seconds, by length). Hidden verses are skipped.',
+    search: ['text', 'reference'],
+    defaults: { published: true },
+    fields: [
+      { key: 'text', label: 'Verse', type: 'textarea', required: true, full: true, rows: 3, placeholder: 'e.g. The LORD is my shepherd; I shall not want.', help: 'Without quotation marks; they are added on the website. Shorter verses (under about 25 words) fit best.' },
+      { key: 'reference', label: 'Reference', type: 'text', required: true, placeholder: 'e.g. Psalm 23:1' },
+      published,
+    ],
+    row: (r) => ({ icon: 'quote', title: s(r.reference), sub: s(r.text) }),
   },
 
   giving_methods: {

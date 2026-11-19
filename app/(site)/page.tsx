@@ -1,5 +1,3 @@
-import { IconSprite } from '@/components/Icon';
-import { RevealObserver } from '@/components/site/Interactive';
 import { SiteHeader } from '@/components/site/SiteHeader';
 import {
   About, BuildingFund, Events, Footer, GallerySection, Giving, Hero, Ministries, Officers, Resources, Services, Visit,
@@ -15,8 +13,6 @@ export default async function HomePage() {
   const now = Date.now();
   return (
     <>
-      <IconSprite />
-      <RevealObserver />
       <a className="skip-link" href="#main">Skip to content</a>
       <SiteHeader shortName={c.info.short_name || c.info.name} />
       <main id="main">

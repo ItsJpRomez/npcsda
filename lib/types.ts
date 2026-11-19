@@ -1,4 +1,4 @@
-/* Shapes of the rows stored in Supabase (see supabase/schema.sql). */
+/* Shapes of the rows stored in Supabase (see supabase/migrations/). */
 
 export interface ChurchInfo {
   id: number;
@@ -66,7 +66,8 @@ export interface ChurchEvent extends Row {
   ends_at: string | null;
   schedule_note: string | null;
   location: string | null;
-  image_url: string | null;
+  image_url: string | null;   // cover photo, same as images[0]
+  images: string[] | null;    // all photos, cover first
   link_url: string | null;
   status: EventStatus;
   is_featured: boolean;
@@ -127,6 +128,12 @@ export interface GivingMethod extends Listed {
 
 export type ResourceCategory = 'bible' | 'sabbath_school' | 'devotional' | 'sermon' | 'study' | 'prayer';
 
+/** A Bible verse in the rotating home page hero. */
+export interface Verse extends Listed {
+  text: string;
+  reference: string;
+}
+
 export interface Resource extends Listed {
   category: ResourceCategory;
   title: string;
@@ -149,4 +156,5 @@ export interface SiteContent {
   giving: Giving;
   givingMethods: GivingMethod[];
   resources: Resource[];
+  verses: Verse[];
 }
